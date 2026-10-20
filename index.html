@@ -254,18 +254,25 @@
 
   <div id="perso" hidden>
     <h2 id="persoTitre"></h2>
+
     <div id="persoIntervalle">
       <div class="inputs">
         <input type="number" id="pDeb" placeholder="Début de l'intervalle">
         <input type="number" id="pFin" placeholder="Fin de l'intervalle">
       </div>
+      <button class="btn" id="pOk">Valider l'intervalle ✔️</button>
     </div>
-    <div class="inputs">
-      <input type="number" id="pEssais" placeholder="Nombre d'essais">
-    </div>
+
     <p id="pAide"></p>
     <p id="pErreur"></p>
-    <button class="btn" id="pStart">Commencer 🚀</button>
+
+    <div id="persoEssais" hidden>
+      <div class="inputs">
+        <input type="number" id="pEssais" placeholder="Nombre d'essais">
+      </div>
+      <button class="btn" id="pStart">Commencer 🚀</button>
+    </div>
+
     <button class="btn btn-gris" id="pRetour">⬅️ Retour</button>
   </div>
 

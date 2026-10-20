@@ -305,85 +305,129 @@ $("nv3").addEventListener("click", () => choisirNiveau(3));
 $("nvRetour").addEventListener("click", () => { sons.bip(); montrer("menu"); });
 
 // ---------- MODE PERSONNALISÉ ----------
-// Nombre d'essais maximum selon la taille de l'intervalle
-function maxEssais(f, avecLettre) {
-  const limites = avecLettre
-    ? [[50, 15], [100, 20], [1000, 25], [3000, 250]]
-    : [[50, 10], [100, 15], [1000, 20], [3000, 150]];
-  for (const [seuil, max] of limites) {
-    if (f <= seuil) return max;
+let persoSecret = null;   // nombre à deviner (tiré quand l'intervalle est validé)
+let persoMax = 0;         // nombre d'essais maximum autorisé
+
+const AIDE_INTERVALLE =
+  "Début entre 0 et 9990, fin au maximum 10000, et au moins 10 nombres dans l'intervalle (fin ≥ début + 10).";
+
+// Nombre d'étapes d'une recherche par dichotomie (en coupant en deux) pour trouver le secret
+function etapesDichotomie(deb, fin, cible) {
+  let etapes = 1;
+  let mil = Math.floor((deb + fin) / 2);
+  while (cible !== mil) {
+    if (cible < mil) fin = mil - 1;
+    else deb = mil + 1;
+    etapes++;
+    mil = Math.floor((deb + fin) / 2);
   }
-  return Infinity;   // au-delà de 3000 : pas de limite
+  return etapes;
 }
 
-function majAidePerso() {
-  if (niveauPerso === 2) {
-    $("pAide").textContent = "Nombre d'essais : de 1 à 26 maximum (il y a 26 lettres).";
-    return;
-  }
-  const deb = Number($("pDeb").value);
-  const fin = Number($("pFin").value);
-  if ($("pDeb").value === "" || $("pFin").value === "" || fin <= deb) {
-    $("pAide").textContent = "L'intervalle doit contenir au moins 10 nombres (fin ≥ début + 10).";
-    return;
-  }
-  const max = maxEssais(fin - deb, niveauPerso === 3);
-  $("pAide").textContent = max === Infinity
-    ? "Nombre d'essais : pas de limite pour cet intervalle."
-    : "Nombre d'essais maximum pour cet intervalle : " + max + ".";
+// Essais supplémentaires autorisés selon la taille de l'intervalle
+function bonusEssais(f) {
+  if (f <= 50)   return 3;
+  if (f <= 100)  return 5;
+  if (f <= 300)  return 10;
+  if (f <= 600)  return 11;
+  if (f <= 1000) return 14;
+  return 17;
 }
 
 function ouvrirPerso(n) {
   niveauPerso = n;
+  persoSecret = null;
+  persoMax = 0;
   $("pDeb").value = "";
   $("pFin").value = "";
   $("pEssais").value = "";
   $("pErreur").textContent = "";
   $("persoIntervalle").hidden = (n === 2);
+  $("persoEssais").hidden = (n !== 2);   // niveau lettre seule : pas d'intervalle
   $("persoTitre").textContent =
     n === 1 ? "🛠️ Niveau 1 — ton intervalle" :
     n === 2 ? "🛠️ Niveau 2 — devinette de la lettre" :
               "🛠️ Niveau 3 — ton intervalle + lettre";
-  majAidePerso();
+  $("pAide").textContent = (n === 2)
+    ? "Nombre d'essais : de 1 à 8 maximum."
+    : AIDE_INTERVALLE;
   montrer("perso");
 }
 
+// Étape 1 (niveaux 1 et 3) : on valide l'intervalle, le nombre secret est tiré
+// et le nombre d'essais maximum est calculé
+function validerIntervalle() {
+  const erreur = (m) => { $("pErreur").textContent = "⚠️ " + m; sons.bip(); };
+
+  if ($("pDeb").value === "" || $("pFin").value === "") {
+    return erreur("Entre le début et la fin de l'intervalle.");
+  }
+  const deb = Number($("pDeb").value);
+  const fin = Number($("pFin").value);
+  if (!Number.isInteger(deb) || !Number.isInteger(fin)) {
+    return erreur("Le début et la fin doivent être des nombres entiers.");
+  }
+  if (deb < 0 || deb > 9990) {
+    return erreur("Le début de l'intervalle doit être entre 0 et 9990.");
+  }
+  if (fin <= deb + 9) {
+    return erreur("L'intervalle doit contenir au moins 10 nombres (fin ≥ début + 10).");
+  }
+  if (fin > 10000) {
+    return erreur("La fin de l'intervalle doit être au maximum 10000.");
+  }
+
+  sons.bip();
+  $("pErreur").textContent = "";
+  persoSecret = randint(deb, fin);
+  persoMax = etapesDichotomie(deb, fin, persoSecret) + bonusEssais(fin - deb);
+  $("pAide").textContent =
+    "✅ Intervalle " + deb + " → " + fin + " : nombre d'essais maximum = " + persoMax + ".";
+  $("pEssais").value = "";
+  $("persoEssais").hidden = false;
+  $("pEssais").focus();
+}
+
+// Si on change l'intervalle, il faut le valider de nouveau
+function resetIntervalle() {
+  if (persoSecret === null) return;
+  persoSecret = null;
+  persoMax = 0;
+  $("persoEssais").hidden = true;
+  $("pEssais").value = "";
+  $("pAide").textContent = AIDE_INTERVALLE;
+}
+
+// Étape 2 : on choisit le nombre d'essais et on lance la partie
 function lancerPerso() {
   const erreur = (m) => { $("pErreur").textContent = "⚠️ " + m; sons.bip(); };
   const n = niveauPerso;
-  let deb = 0, fin = 0;
 
-  if (n !== 2) {
-    if ($("pDeb").value === "" || $("pFin").value === "") {
-      return erreur("Entre le début et la fin de l'intervalle.");
-    }
-    deb = Number($("pDeb").value);
-    fin = Number($("pFin").value);
-    if (!Number.isInteger(deb) || !Number.isInteger(fin)) {
-      return erreur("Le début et la fin doivent être des nombres entiers.");
-    }
-    if (fin <= deb + 9) {
-      return erreur("L'intervalle doit contenir au moins 10 nombres (fin ≥ début + 10).");
-    }
+  if (n !== 2 && persoSecret === null) {
+    return erreur("Valide d'abord l'intervalle.");
   }
-
   const essais = Number($("pEssais").value);
   if ($("pEssais").value === "" || !Number.isInteger(essais) || essais <= 0) {
     return erreur("Entre un nombre d'essais entier, au moins 1.");
   }
-  const max = (n === 2) ? 26 : maxEssais(fin - deb, n === 3);   // niveau lettre seule : 26 max
+  const max = (n === 2) ? 8 : persoMax;   // niveau lettre seule : 8 essais max
   if (essais > max) {
     return erreur("Le nombre d'essais maximum est " + max + ".");
   }
 
-  lancer("perso", n, {
-    min: deb, max: fin, essais: essais,
-    nombre: (n !== 2), lettre: (n !== 1)
-  });
+  if (n === 2) {
+    lancer("perso", n, { min: 0, max: 0, essais: essais, nombre: false, lettre: true });
+  } else {
+    lancer("perso", n, {
+      min: Number($("pDeb").value), max: Number($("pFin").value), essais: essais,
+      nombre: true, lettre: (n === 3), secretFixe: persoSecret
+    });
+  }
 }
 
-$("pDeb").addEventListener("input", majAidePerso);
-$("pFin").addEventListener("input", majAidePerso);
+$("pDeb").addEventListener("input", resetIntervalle);
+$("pFin").addEventListener("input", resetIntervalle);
+$("pOk").addEventListener("click", validerIntervalle);
 $("pStart").addEventListener("click", lancerPerso);
 $("pRetour").addEventListener("click", () => { sons.bip(); montrer("menuNiveaux"); });
 
@@ -393,7 +437,7 @@ function lancer(modeCle, n, config) {
   modeCourant = modeCle;
   niveauCourant = n;
   cfg = config;
-  secret = cfg.nombre ? randint(cfg.min, cfg.max) : null;
+  secret = cfg.nombre ? (cfg.secretFixe !== undefined ? cfg.secretFixe : randint(cfg.min, cfg.max)) : null;
   lettreSecrete = String.fromCharCode(randint(65, 90));
   restants = cfg.essais;
 
