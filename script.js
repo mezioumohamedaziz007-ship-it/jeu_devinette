@@ -328,10 +328,8 @@ function etapesDichotomie(deb, fin, cible) {
 function bonusEssais(f) {
   if (f <= 50)   return 3;
   if (f <= 100)  return 5;
-  if (f <= 300)  return 10;
-  if (f <= 600)  return 11;
-  if (f <= 1000) return 14;
-  return 17;
+  if (f <= 1000) return 7;
+  return 9;
 }
 
 function ouvrirPerso(n) {
