@@ -507,11 +507,21 @@ function valider() {
   if (cfg.nombre) {
     if (s < secret) log(essaiTexte + " ⬆️ " + (cfg.lettre ? "Augmente le chiffre" : "Augmente"), "haut");
     else if (s > secret) log(essaiTexte + " ⬇️ " + (cfg.lettre ? "Diminue le chiffre" : "Diminue"), "bas");
+
+    // niveau avec nombre + lettre : le nombre est faux mais la lettre est juste
+    if (cfg.lettre && s !== secret && j === lettreSecrete) {
+      log("✅ Votre conjecture de lettres est correcte", "info");
+    }
   }
 
   if (cfg.lettre) {
     if (j < lettreSecrete) log(essaiTexte + " 🔤 Augmente la lettre", "haut");
     else if (j > lettreSecrete) log(essaiTexte + " 🔤 Diminue la lettre", "bas");
+
+    // niveau avec nombre + lettre : la lettre est fausse mais le nombre est juste
+    if (cfg.nombre && j !== lettreSecrete && s === secret) {
+      log("✅ Votre conjecture de chiffres est correcte", "info");
+    }
   }
 
   if (restants === 0) {
