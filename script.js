@@ -7,9 +7,9 @@
 
 // ---------- MODES ET NIVEAUX ----------
 const MODES = {
-  normal:  { nom: "NORMAL",  emoji: "🟢", essais: { 1: 15, 2: 10, 3: 10 } },
-  hard:    { nom: "HARD",    emoji: "🟠", essais: { 1: 5,  2: 5,  3: 5  } },
-  extreme: { nom: "EXTREME", emoji: "🔴", essais: { 1: 2,  2: 3,  3: 3  } }
+  normal:  { nom: "NORMAL",  emoji: "🟢", essais: { 1: 9,  2: 12, 3: 12 } },
+  hard:    { nom: "HARD",    emoji: "🟠", essais: { 1: 6,  2: 8,  3: 8  } },
+  extreme: { nom: "EXTREME", emoji: "🔴", essais: { 1: 4,  2: 6,  3: 6  } }
 };
 
 // Les 3 niveaux (même intervalles pour Normal / Hard / Extreme)
@@ -171,10 +171,10 @@ function creerCase(v, rang) {
   return li;
 }
 
-// Ordre chronologique : de la plus ancienne à la plus récente
+// Ordre chronologique : la plus récente en haut, la plus ancienne en bas
 function afficherChrono(liste, ul) {
   liste.slice()
-    .sort((x, y) => new Date(x.date) - new Date(y.date))
+    .sort((x, y) => new Date(y.date) - new Date(x.date))
     .forEach((v) => ul.appendChild(creerCase(v)));
 }
 
@@ -309,7 +309,7 @@ let persoSecret = null;   // nombre à deviner (tiré quand l'intervalle est val
 let persoMax = 0;         // nombre d'essais maximum autorisé
 
 const AIDE_INTERVALLE =
-  "Début entre 0 et 9990, fin au maximum 10000, et au moins 10 nombres dans l'intervalle (fin ≥ début + 10).";
+  "Début entre 0 et 9950, fin au maximum 10000, et au moins 50 nombres dans l'intervalle (fin ≥ début + 50).";
 
 // Nombre d'étapes d'une recherche par dichotomie (en coupant en deux) pour trouver le secret
 function etapesDichotomie(deb, fin, cible) {
@@ -324,12 +324,11 @@ function etapesDichotomie(deb, fin, cible) {
   return etapes;
 }
 
-// Essais supplémentaires autorisés selon la taille de l'intervalle
+// Essais supplémentaires autorisés selon la taille de l'intervalle (f >= 50)
 function bonusEssais(f) {
-  if (f <= 50)   return 3;
-  if (f <= 100)  return 5;
-  if (f <= 1000) return 7;
-  return 9;
+  if (f <= 100)  return 3;
+  if (f <= 1000) return 5;
+  return 7;
 }
 
 function ouvrirPerso(n) {
@@ -365,11 +364,11 @@ function validerIntervalle() {
   if (!Number.isInteger(deb) || !Number.isInteger(fin)) {
     return erreur("Le début et la fin doivent être des nombres entiers.");
   }
-  if (deb < 0 || deb > 9990) {
-    return erreur("Le début de l'intervalle doit être entre 0 et 9990.");
+  if (deb < 0 || deb > 9950) {
+    return erreur("Le début de l'intervalle doit être entre 0 et 9950.");
   }
-  if (fin <= deb + 9) {
-    return erreur("L'intervalle doit contenir au moins 10 nombres (fin ≥ début + 10).");
+  if (fin <= deb + 49) {
+    return erreur("L'intervalle doit contenir au moins 50 nombres (fin ≥ début + 50).");
   }
   if (fin > 10000) {
     return erreur("La fin de l'intervalle doit être au maximum 10000.");
@@ -458,6 +457,47 @@ function lancer(modeCle, n, config) {
   (cfg.nombre ? $("nombre") : $("lettre")).focus();
 }
 
+// Somme des chiffres d'un nombre (ex : 472 -> 13)
+function sommeChiffres(n) {
+  return String(Math.abs(n)).split("").reduce((t, c) => t + Number(c), 0);
+}
+
+// Construit la liste des indices vrais et en tire un au hasard.
+// "Augmente" et "Diminue" sont comptés deux fois, comme dans le Python,
+// sauf au niveau 1 de Normal / Hard / Extreme où ils ne comptent qu'une fois (simple = true).
+function indiceNombre(s, n, simple = false) {
+  const ss = sommeChiffres(s);
+  const sn = sommeChiffres(n);
+  const tous = [
+    [s % 2 !== 0 && n % 2 === 0, "💡 Le nombre est divisible par 2", "info"],
+    [s % 2 === 0 && n % 2 !== 0, "💡 Le nombre n'est pas divisible par 2", "info"],
+
+    [s % 3 !== 0 && n % 3 === 0, "💡 Le nombre est divisible par 3", "info"],
+    [s % 3 === 0 && n % 3 !== 0, "💡 Le nombre n'est pas divisible par 3", "info"],
+
+    [s % 5 !== 0 && n % 5 === 0, "💡 Le nombre est divisible par 5", "info"],
+    [s % 5 === 0 && n % 5 !== 0, "💡 Le nombre n'est pas divisible par 5", "info"],
+
+    [ss % 2 !== 0 && sn % 2 === 0, "💡 La somme des chiffres du nombre est divisible par 2", "info"],
+    [ss % 3 !== 0 && sn % 3 === 0, "💡 La somme des chiffres du nombre est divisible par 3", "info"],
+    [ss % 5 !== 0 && sn % 5 === 0, "💡 La somme des chiffres du nombre est divisible par 5", "info"],
+
+    [s < n, "⬆️ Augmente le nombre", "haut"],
+    [s > n, "⬇️ Diminue le nombre", "bas"],
+    [!simple && s < n, "⬆️ Augmente le nombre", "haut"],
+    [!simple && s > n, "⬇️ Diminue le nombre", "bas"]
+  ];
+  let valides = tous.filter((t) => t[0]);
+
+  // Aucun indice possible (ex : les deux nombres ont les mêmes propriétés) :
+  // le Python planterait ici, le jeu donne alors "augmente / diminue".
+  if (valides.length === 0) {
+    valides = [s < n ? [true, "⬆️ Augmente le nombre", "haut"] : [true, "⬇️ Diminue le nombre", "bas"]];
+  }
+  const choix = valides[randint(0, valides.length - 1)];
+  return { texte: choix[1], type: choix[2] };
+}
+
 function terminer() {
   $("jeu").hidden = true;
   $("fin").hidden = false;
@@ -505,8 +545,12 @@ function valider() {
   else sons.bip();
 
   if (cfg.nombre) {
-    if (s < secret) log(essaiTexte + " ⬆️ " + (cfg.lettre ? "Augmente le chiffre" : "Augmente"), "haut");
-    else if (s > secret) log(essaiTexte + " ⬇️ " + (cfg.lettre ? "Diminue le chiffre" : "Diminue"), "bas");
+    // un indice choisi au hasard parmi ceux qui sont vrais (comme le choice() du Python)
+    // (pas d'indice sur le nombre s'il est déjà juste : seule la lettre est fausse)
+    if (s !== secret) {
+      const ind = indiceNombre(s, secret, modeCourant !== "perso" && niveauCourant === 1);
+      log(essaiTexte + " " + ind.texte, ind.type);
+    }
 
     // niveau avec nombre + lettre : le nombre est faux mais la lettre est juste
     if (cfg.lettre && s !== secret && j === lettreSecrete) {
