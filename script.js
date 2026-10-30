@@ -479,7 +479,6 @@ function indiceNombre(s, n, simple = false) {
     [s % 5 === 0 && n % 5 !== 0, "💡 Le nombre n'est pas divisible par 5", "info"],
 
     [ss % 2 !== 0 && sn % 2 === 0, "💡 La somme des chiffres du nombre est divisible par 2", "info"],
-    [ss % 3 !== 0 && sn % 3 === 0, "💡 La somme des chiffres du nombre est divisible par 3", "info"],
     [ss % 5 !== 0 && sn % 5 === 0, "💡 La somme des chiffres du nombre est divisible par 5", "info"],
 
     [s < n, "⬆️ Augmente le nombre", "haut"],
